@@ -178,10 +178,3 @@ transition Transfer(to: ByStr20, amount: Uint128)
   send msgs
 end
 
-(* @dev: Burns token upon termination of company's campaign. Used by token_owner. *)
-(* @dev: Balance of all token holders will become 0.                              *)
-transition Burn()
-  IsContractOwner;
-  token_holders = builtin to_list balances;
-
-end
