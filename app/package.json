@@ -1,0 +1,14 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@zilliqa-js/zilliqa": "^3.0.0",
+    "bn.js": "^5.2.0",
+    "tslib": "^2.3.0"
+  },
+  "scripts": {
+    "deploy": "node index.js"
+  }
+}
