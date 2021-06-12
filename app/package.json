@@ -9,6 +9,7 @@
     "tslib": "^2.3.0"
   },
   "scripts": {
-    "deploy": "node index.js"
+    "deployFT": "node deployFungibleToken.js",
+    "callFT": "node callFungibleToken.js"
   }
 }
