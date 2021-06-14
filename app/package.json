@@ -10,6 +10,8 @@
   },
   "scripts": {
     "deployFT": "node deployFungibleToken.js",
-    "callFT": "node callFungibleToken.js"
+    "callFT": "node callFungibleToken.js",
+    "deployM": "node deployMilestone.js",
+    "callM": "node callMilestone.js"
   }
 }
