@@ -11,7 +11,32 @@ https://scilla.readthedocs.io/en/latest/scilla-trial.html
 react dapp
 https://github.com/Zilliqa/dev-portal-examples/tree/master/hello-world
 
+
 ## Progress
+
+| Timeline                                                                                                                                | Procedure                                                                                      | Status                                                                                                                                                                                                   | Implementation details                                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Review 3                                                                                                                                | Edit Fungible Token Smart Contract (Transfer function can only be initiated by contract owner) | done                                                                                                                                                                                                     | The corresponding function of Transfer is the TransferFrom function which is removed. Add CodeIsContractOwner checks for existing functions; previously procedures and transitions checked for different users. |
+|| Write Javascript to deploy Fungible Token Smart Contract (Figure 2) and call the relevant functions from smart contract                 | done                                                                                           | Added automatic saving of deployed smart contract address which is needed to call functions from smart contract. Refactored into two scripts, one for deployment only and another for calling functions. |
+|| Write out Milestone Smart Contract (Functions for contract owner to call to approve milestones, claimback balance if startup fails etc) | done                                                                                           | Implemented logic (ie. Milestone 2 can only be redeemed after Milestone 1 is redeemed, check if deadline is over, check if this is owner accessible )                                                    |
+|| Write Javascript to deploy Milestone Smart Contract and call the relevant functions from smart contract                                 | done                                                                                           | Need to add transition AddFunds() in order to deploy contract with funds.                                                                                                                                |
+|| Integrate Javascript for deploy + transitions in FungibleToken, Milestone with Backend                                                  |                                                                                                | Refactor. Also need to manage error code output for smart contracts                                                                                                                                      |
+| Review 4                                                                                                                                | Edit Crowdfunding smart contract                                                               |                                                                                                                                                                                                          |                                                                                                                                                                                                                 |
+|| Integrate crowdfunding and milestone smart contract                                                                                     |                                                                                                |                                                                                                                                                                                                          |
+|| Add burn function to exchange fungibleToken for ZIL                                                                                     |                                                                                                |                                                                                                                                                                                                          |
+|| Add deadline for crowdfunding smart contract                                                                                            |                                                                                                |                                                                                                                                                                                                          |
+|| Get smart contract to accept XSGD rather than ZIL                                                                                       |                                                                                                |                                                                                                                                                                                                          |
+
+
+## Flowchart for FungibleToken
+
+![](res/flowchart3.png)
+
+***
+
+
+
+## [Outdated 2] Progress
 | Procedure                                                                                                                                                                                                                                                                                                                                                                                                                                             | Status | Implementation details                                                                                                                                                                                                                                                                                                               |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Userflow for campaign to identify which parts are supposed to be done with smart contract                                                                                                                                                                                                                                                                                                                                                             | done   |                                                                                                                                                                                                                                                                                                                                      |
@@ -24,13 +49,7 @@ https://github.com/Zilliqa/dev-portal-examples/tree/master/hello-world
 | Javascript to deploy and interact with smart contract (secondary market)                                                                                                                                                                                                                                                                                                                                                                              |        |                                                                                                                                                                                                                                                                                                                                      |
 
 
-https://forum.openzeppelin.com/t/how-to-create-an-erc20-token-with-burn-and-stop-burn-feature/1048/4
 
-https://scilla.readthedocs.io/en/latest/scilla-in-depth.html#list
-
-## Flowchart for FungibleToken
-
-![](res/flowchartCapstone.png)
 
 ## [Outdated] Progress
 | Procedure                                                                                                                                       | Status | Implementation details                                                                                                                                                                             |
@@ -50,3 +69,9 @@ https://scilla.readthedocs.io/en/latest/scilla-in-depth.html#list
 1.	smart_contract_owner needs to IncreaseAllowance() + Transfer()
 2.	For secondary market market scenario 1: token holder -> secondary market recipient, smart_contract_owner needs to IncreaseAllowance()  +  tokenholder needs to TransferFrom() where the from is the address of smart_contract_owner
 3.	For secondary market market scenario 2: secondary market recipient -> secondary market recipient, smart_contract_owner needs to IncreaseAllowance()  +  tokenholder needs to TransferFrom() where the from is the address of smart_contract_owner
+
+
+## References
+https://forum.openzeppelin.com/t/how-to-create-an-erc20-token-with-burn-and-stop-burn-feature/1048/4
+
+https://scilla.readthedocs.io/en/latest/scilla-in-depth.html#list
