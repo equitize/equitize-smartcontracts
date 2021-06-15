@@ -53,11 +53,7 @@ async function testBlockchain() {
     // Retrieving the transaction receipt (See note 2)
     console.log(JSON.stringify(callTx.receipt, null, 4));
 
-    //Get the contract state
-    console.log('Getting contract state...');
-    const state = await deployedContract.getState();
-    console.log('The state of the contract is:');
-    console.log(JSON.stringify(state, null, 4));
+
 
     //milestone2
     console.log('Calling FinishMilestoneTwo transition' );
@@ -79,11 +75,7 @@ async function testBlockchain() {
     // Retrieving the transaction receipt (See note 2)
     console.log(JSON.stringify(callTx2.receipt, null, 4));
 
-    //Get the contract state
-    console.log('Getting contract state...');
-    const state = await deployedContract.getState();
-    console.log('The state of the contract is:');
-    console.log(JSON.stringify(state, null, 4));
+
 
      //milestone3
      console.log('Calling FinishMilestoneThree transition' );
@@ -105,11 +97,6 @@ async function testBlockchain() {
      // Retrieving the transaction receipt (See note 2)
      console.log(JSON.stringify(callTx3.receipt, null, 4));
  
-     //Get the contract state
-     console.log('Getting contract state...');
-     const state = await deployedContract.getState();
-     console.log('The state of the contract is:');
-     console.log(JSON.stringify(state, null, 4));
 
      //SetDeadlineTrue
      console.log('Calling SetDeadlineTrue transition' );
@@ -131,12 +118,6 @@ async function testBlockchain() {
      // Retrieving the transaction receipt (See note 2)
      console.log(JSON.stringify(callTx5.receipt, null, 4));
  
-     //Get the contract state
-     console.log('Getting contract state...');
-     const state = await deployedContract.getState();
-     console.log('The state of the contract is:');
-     console.log(JSON.stringify(state, null, 4));
-
     
 
      //claimback
@@ -159,11 +140,7 @@ async function testBlockchain() {
      // Retrieving the transaction receipt (See note 2)
      console.log(JSON.stringify(callTx4.receipt, null, 4));
  
-     //Get the contract state
-     console.log('Getting contract state...');
-     const state = await deployedContract.getState();
-     console.log('The state of the contract is:');
-     console.log(JSON.stringify(state, null, 4));
+
      
   } catch (err) {
     console.log(err);
