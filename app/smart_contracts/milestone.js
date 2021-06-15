@@ -1,7 +1,6 @@
 
 module.exports =
 `
-
 (***************************************************)
 (*                 Scilla version                  *)
 (***************************************************)
@@ -174,6 +173,17 @@ transition Claimback()
     end
 end
     
-    
+transition AddFunds ()
+    is_owner = builtin eq owner _sender;
+    match is_owner with
+    | False =>
+        e = {_eventname : "addFunds"; code : not_owner_code};
+        event e
+    | True =>
+        accept;
+        e = {_eventname : "addFunds"; code : not_owner_code };
+        event e
+    end
+end
 
 `

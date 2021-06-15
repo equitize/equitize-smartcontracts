@@ -112,25 +112,31 @@ async function testBlockchain() {
         }
     });
 
-    // const tx = await zilliqa.blockchain.createTransaction(
-    //   // Notice here we have a default function parameter named toDs which means the priority of the transaction.
-    //   // If the value of toDs is false, then the transaction will be sent to a normal shard, otherwise, the transaction.
-    //   // will be sent to ds shard. More info on design of sharding for smart contract can be found in.
-    //   // https://blog.zilliqa.com/provisioning-sharding-for-smart-contracts-a-design-for-zilliqa-cd8d012ee735.
-    //   // For payment transaction, it should always be false.
-    //   zilliqa.transactions.new(
-    //     {
-    //       version: VERSION,
-    //       toAddr: deployedMilestone.address,
-    //       amount: new BN(units.toQa('0.5', units.Units.Zil)), // Sending an amount in Zil (1) and converting the amount to Qa
-    //       gasPrice: myGasPrice, // Minimum gasPrice veries. Check the `GetMinimumGasPrice` on the blockchain
-    //       gasLimit: Long.fromNumber(50),
-    //     },
-    //     false,
-    //   ),
-    // );
-    console.log(`The transaction status is:`);
-    console.log(tx.receipt);
+    const deployedContract = zilliqa.contracts.at(deployedMilestone.address);
+    console.log('Calling AddFunds transition' );
+    const callTx = await deployedContract.call(
+      'AddFunds',
+      [],
+      {
+        // amount, gasPrice and gasLimit must be explicitly provided
+        version: VERSION,
+        amount: new BN(50),
+        gasPrice: myGasPrice,
+        gasLimit: Long.fromNumber(8000),
+      },
+      33,
+      1000,
+      false,
+    );
+
+    // Retrieving the transaction receipt (See note 2)
+    console.log(JSON.stringify(callTx.receipt, null, 4));
+
+    //Get the contract state
+    console.log('Getting contract state...');
+    const state = await deployedContract.getState();
+    console.log('The state of the contract is:');
+    console.log(JSON.stringify(state, null, 4));
     //Following line added to fix issue https://github.com/Zilliqa/Zilliqa-JavaScript-Library/issues/168
     // const deployedContract = zilliqa.contracts.at(deployedFungibleToken.address);
   } catch (err) {
