@@ -1,0 +1,340 @@
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+
+import BoolUtils
+
+library Crowdfunding
+
+let one_msg = 
+  fun (msg : Message) => 
+    let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+    
+let check_update = 
+  fun (bs : Map ByStr20 Uint128) =>
+  fun (sender : ByStr20) =>
+  fun (amount : Uint128) =>
+    let c = builtin contains bs sender in
+    match c with 
+    | False => 
+      let bs1 = builtin put bs sender amount in
+      Some {Map ByStr20 Uint128} bs1 
+    | True  => None {Map ByStr20 Uint128}
+    end
+
+
+(* Error code for Crowdfunding*)
+let accepted_code = Int32 1
+let missed_deadline_code = Int32 2
+let already_backed_code  = Int32 3
+let not_owner_code  = Int32 4
+let too_early_code  = Int32 5
+(* let got_funds_code  = Int32 6 *)
+(* let cannot_get_funds  = Int32 7 *)
+let campaign_success_code = Int32 6
+let campaign_error_code = Int32 7
+let cannot_reclaim_code = Int32 8
+let reclaimed_code = Int32 9
+let set_crowdfunding_deadline_successful_code = Int32 10
+
+(* Error code for Milestone*)
+let milestone_one_completed_code  = Int32 11
+let milestone_claimed_code = Int32 12
+let milestone_one_not_completed_code = Int32 13
+let milestone_two_completed_code = Int32 14
+let milestone_two_not_completed_code = Int32 15
+let milestone_three_completed_code = Int32 16
+let set_milestone_deadline_successful_code = Int32 17
+let milestone_deadline_over_code = Int32 18
+let milestone_deadline_not_over_yet_code = Int32 19
+let milestone_refund_retail_investor_code = Int32 20
+let not_owner_or_not_funded_code  = Int32 21
+  
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+contract Crowdfunding
+
+(*  Parameters *)
+(owner     : ByStr20,
+ goal      : Uint128,
+ milestone_one: Uint128,
+ milestone_two: Uint128,
+ company_address: ByStr20
+ )
+
+(* Mutable fields *)
+field backers : Map ByStr20 Uint128 = Emp ByStr20 Uint128
+field funded : Bool = False
+field after_crowdfunding_deadline : Bool = False
+
+(* Fields for milestone*)
+field completed_milestone_one : Bool = False
+field completed_milestone_two : Bool = False
+field completed_milestone_three : Bool = False
+field after_milestone_deadline : Bool = False
+
+transition Donate ()
+  d <- after_crowdfunding_deadline;
+  in_time = negb d;
+  match in_time with 
+  | True  => 
+    bs  <- backers;
+    res = check_update bs _sender _amount;
+    match res with
+    | None => 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : already_backed_code};
+      msgs = one_msg msg;
+      send msgs
+    | Some bs1 =>
+      backers := bs1; 
+      accept; 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : accepted_code};
+      msgs = one_msg msg;
+      e = { _eventname : "DonationAccepted"; donor : _sender; amount : _amount };
+      event e;
+      send msgs     
+    end  
+  | False => 
+    msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+            code : missed_deadline_code};
+    msgs = one_msg msg;
+    send msgs
+  end 
+end
+
+(* call upon campaign success + deadline over*)
+transition CrowdfundingGetFunds ()
+  is_owner = builtin eq owner _sender;
+  match is_owner with
+  | False => 
+    msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0;
+            code : not_owner_code};
+    msgs = one_msg msg;
+    send msgs
+  | True => 
+    d <- after_crowdfunding_deadline;
+    c1 = d;
+    bal <- _balance;
+    c2 = builtin lt bal goal;
+    c3 = negb c2;
+    c4 = andb c1 c3;
+    match c4 with 
+    | False =>  
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0;
+              code : campaign_error_code};
+      msgs = one_msg msg;
+      send msgs
+    | True => 
+      tt = True;
+      funded := tt;
+      msg  = {_tag : ""; _recipient : owner; _amount : Uint128 0; 
+              code : campaign_success_code};
+      msgs = one_msg msg;
+      send msgs
+    end
+  end   
+end
+
+(* transition ClaimBack *)
+transition CrowdfundingClaimBack ()
+  d <- after_crowdfunding_deadline;
+  match d with
+  | False =>
+    msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0;
+            code : too_early_code};
+    msgs = one_msg msg;
+    send msgs
+  | True =>
+    bs <- backers;
+    bal <- _balance;
+    (* Goal has not been reached *)
+    f <- funded;
+    c1 = builtin lt bal goal;
+    c2 = builtin contains bs _sender;
+    c3 = negb f;
+    c4 = andb c1 c2;
+    c5 = andb c3 c4;
+    match c5 with
+    | False =>
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0;
+              code : cannot_reclaim_code};
+      msgs = one_msg msg;
+      send msgs
+    | True =>
+      res = builtin get bs _sender;
+      match res with
+      | None =>
+        msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0;
+                code : cannot_reclaim_code};
+        msgs = one_msg msg;
+        send msgs
+      | Some v =>
+        bs1 = builtin remove bs _sender;
+        backers := bs1;
+        msg  = {_tag : ""; _recipient : _sender; _amount : v; 
+                code : reclaimed_code};
+        msgs = one_msg msg;
+        e = { _eventname : "ClaimedBack"; claimed_by : _sender; amount : v };
+        event e;
+        send msgs
+      end
+    end
+  end  
+end
+
+transition SetCrowdfundingDeadlineTrue()
+    is_owner = builtin eq owner _sender;
+    match is_owner with 
+    |  False =>
+        e = {_eventname : "set_crowdfunding_deadline"; code : not_owner_code};
+        event e
+    |  True =>
+        tt = True;
+        after_crowdfunding_deadline := tt;
+        e = {_eventname : "set_crowdfunding_deadline"; code : set_crowdfunding_deadline_successful_code};
+        event e
+    end
+end
+
+(* Milestone transitions*)
+procedure MilestonePerformGetFunds (amount : Uint128)
+  msg = {_tag : ""; _recipient : company_address; _amount : amount; code : milestone_claimed_code};
+  msgs = one_msg msg;
+  e = { _eventname : "ClaimSuccess"; caller : company_address; amount : amount; code : milestone_claimed_code};
+  event e;
+  send msgs
+end
+transition FinishMilestoneOne()
+    is_owner = builtin eq owner _sender;
+    d <- after_milestone_deadline;
+    f <- funded;
+    c1 = andb is_owner f;
+    match c1 with
+    | False =>
+        e = {_eventname : "finish_milestone_one"; code : not_owner_or_not_funded_code};
+        event e
+    | True =>
+        match d with
+        | False =>
+            MilestonePerformGetFunds milestone_one;
+            tt = True;
+            completed_milestone_one := tt;
+            e = {_eventname : "finish_milestone_one"; code : milestone_one_completed_code};
+            event e
+        | True =>
+            e = {_eventname : "finish_milestone_one"; code : milestone_deadline_over_code};
+            event e
+        end
+    end
+end
+
+transition FinishMilestoneTwo()
+    is_owner = builtin eq owner _sender;
+    f <- funded;
+    c1 = andb is_owner f;
+    match c1 with
+    | False =>
+        e = {_eventname : "finish_milestone_two"; code : not_owner_or_not_funded_code};
+        event e
+    | True =>
+        d <- after_milestone_deadline;
+        match d with 
+        | True =>
+            e = {_eventname : "finish_milestone_two"; code : milestone_deadline_over_code};
+            event e
+        | False =>
+            c <- completed_milestone_one;
+            match c with 
+            | False =>
+                e = {_eventname : "finish_milestone_two"; code : milestone_one_not_completed_code};
+                event e
+            | True =>
+                MilestonePerformGetFunds milestone_two;
+                tt = True;
+                completed_milestone_two := tt;
+                e = {_eventname : "finish_milestone_two"; code : milestone_two_completed_code};
+                event e
+            end
+        end
+    end
+end
+
+
+transition FinishMilestoneThree()
+    is_owner = builtin eq owner _sender;
+    f <- funded;
+    c1 = andb is_owner f;
+    match c1 with
+    | False =>
+        e = {_eventname : "finish_milestone_three"; code : not_owner_or_not_funded_code};
+        event e
+    | True =>
+        d <- after_milestone_deadline;
+        match d with 
+        | True =>
+            e = {_eventname : "finish_milestone_three"; code : milestone_deadline_over_code};
+            event e
+        | False =>
+            c <- completed_milestone_two;
+            match c with 
+            | False =>
+                e = {_eventname : "finish_milestone_three"; code : milestone_two_not_completed_code};
+                event e
+            | True =>
+                bal <- _balance;
+                MilestonePerformGetFunds bal;
+                tt = True;
+                completed_milestone_three := tt;
+                e = {_eventname : "finish_milestone_three"; code : milestone_three_completed_code};
+                event e
+            end
+        end 
+    end
+end
+
+transition MilestoneClaimback()
+    is_owner = builtin eq owner _sender;
+    match is_owner with 
+    |  False =>
+        e = {_eventname : "Claimback"; code : not_owner_code};
+        event e
+    |  True =>
+        d <- after_milestone_deadline;
+        match d with
+        |  False =>
+            e = {_eventname : "Claimback"; code : milestone_deadline_not_over_yet_code};
+            event e
+        |  True =>
+            bal <- _balance;
+            msg = {_tag : ""; _recipient : owner; _amount : bal; code : milestone_refund_retail_investor_code};
+            msgs = one_msg msg;
+            send msgs
+        end
+    end
+end
+    
+
+
+
+transition SetMilestoneDeadlineTrue()
+    is_owner = builtin eq owner _sender;
+    f <- funded;
+    c1 = andb is_owner f;
+    match c1 with 
+    |  False =>
+        e = {_eventname : "set_milestone_deadline"; code : not_owner_or_not_funded_code};
+        event e
+    |  True =>
+        tt = True;
+        after_milestone_deadline := tt;
+        e = {_eventname : "set_milestone_deadline"; code : set_milestone_deadline_successful_code};
+        event e
+    end
+end
+
