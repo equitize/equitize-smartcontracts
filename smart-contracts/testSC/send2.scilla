@@ -1,0 +1,45 @@
+(* HelloWorld contract *)
+
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+library TestSendContract
+
+let get_hello_code  = Uint32 1
+let hello_SC = "0xFBDC8D084C6eB56F4A7f20feFe2D55AD70Fbc209"
+
+
+let one_msg =
+  fun (msg : Message) =>
+  let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestSendContract
+(owner: ByStr20)
+
+(* to_address is bech32 smart address converted into base16 address via ide smart tool*)
+transition getHelloSC (to_address: ByStr20, msg1: String, msg2: String)
+    msg_1 = {_tag : "setHello"; _recipient : to_address; _amount : _amount; msg: msg1};
+    msg_2 = {_tag : "setHello2"; _recipient : to_address; _amount : _amount; msg: msg2};
+    msgs = two_msgs msg_1 msg_2;
+    send msgs
+end
+
+

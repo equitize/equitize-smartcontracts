@@ -12,6 +12,8 @@
     "deployFT": "node deployFungibleToken.js",
     "callFT": "node callFungibleToken.js",
     "deployM": "node deployMilestone.js",
-    "callM": "node callMilestone.js"
+    "callM": "node callMilestone.js",
+    "deployEFT": "node deployEditFT.js",
+    "callEFT": "node callEFT.js"
   }
 }

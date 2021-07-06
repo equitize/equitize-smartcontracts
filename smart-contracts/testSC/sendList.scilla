@@ -1,0 +1,83 @@
+(* HelloWorld contract *)
+
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+library TestSendContract
+
+let get_hello_code  = Uint32 1
+let hello_SC = "0xFBDC8D084C6eB56F4A7f20feFe2D55AD70Fbc209"
+
+
+let one_msg =
+  fun (msg : Message) =>
+  let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+
+let check_update = 
+  fun (bs : Map ByStr20 Uint128) =>
+  fun (sender : ByStr20) =>
+  fun (amount : Uint128) =>
+    let c = builtin contains bs sender in
+    match c with 
+    | False => 
+      let bs1 = builtin put bs sender amount in
+      Some {Map ByStr20 Uint128} bs1 
+    | True  => None {Map ByStr20 Uint128}
+    end
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestSendContract
+(owner: ByStr20)
+
+field backers : Map ByStr20 Uint128 = Emp ByStr20 Uint128
+
+transition Donate()
+    bs  <- backers;
+    res = check_update bs _sender _amount;
+    match res with
+    | None => 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : already_backed_code};
+      msgs = one_msg msg;
+      send msgs
+    | Some bs1 =>
+      backers := bs1; 
+      accept; 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : accepted_code};
+      msgs = one_msg msg;
+      e = { _eventname : "DonationAccepted"; donor : _sender; amount : _amount };
+      event e;
+      send msgs     
+    end  
+
+
+(* to_address is bech32 smart address converted into base16 address via ide smart tool*)
+(* not written properly at the momennt,*)
+transition getHelloSC (to_address: ByStr20, msg1: String, msg2: String)
+    bs  <- backers;    
+    backer_list = builtin to_list bs;
+
+    msg_1 = {_tag : "setHello"; _recipient : to_address; _amount : _amount; msg: msg1};
+    msg_2 = {_tag : "setHello2"; _recipient : to_address; _amount : _amount; msg: msg2};
+    msgs = two_msgs msg_1 msg_2;
+    send msgs
+end
+
+

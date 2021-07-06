@@ -1,0 +1,42 @@
+(* HelloWorld contract *)
+
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+library HelloWorld
+
+
+let set_hello_code  = Uint32 1
+
+let set_hello_code_2  = Uint32 2
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract HelloWorld
+(owner: ByStr20)
+
+field welcome_msg_1 : String = ""
+field welcome_msg_2 : String = ""
+
+transition setHello (msg: String)
+  welcome_msg_1 := msg;
+  e = {_eventname : "setHello"; code : set_hello_code};
+  event e
+end
+
+transition setHello2 (msg: String)
+  welcome_msg_2 := msg;
+  e = {_eventname : "setHello2"; code : set_hello_code_2};
+  event e
+end
+
+
+
