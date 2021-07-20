@@ -1,0 +1,139 @@
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+import ListUtils PairUtils
+library TestSendContract
+
+let accepted_code  = Uint32 1
+let already_backed_code = Uint32 2
+let ft_contract_address = 0xcd2A6DD2D494DEA5F81A0e80F713D6844bAa7C74
+
+
+let empty_msg_list = Nil {Message} 
+
+let one_msg =
+  fun (msg : Message) =>
+  let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+
+let dynamic_msg_list: List Message -> List Message -> List Message =
+  fun (lmsg : List Message) =>
+    fun (msg : List Message) =>
+      let la = @list_append Message in
+      la lmsg msg
+
+(* msg  = {_tag : "Transfer"; _recipient : contract_address; _amount : Uint128 0; to:  reciepient_address; amount: request_balance};       *)
+(*let mk_transfer_token_msg : ByStr20 -> Uint128 -> ByStr20 -> List Message =*)
+(*  fun (reciepient_address: ByStr20) =>*)
+(*  fun (request_balance: Uint128) =>*)
+(*  fun (ft_contract_address: ByStr20) =>*)
+(*  let msg =  {_tag : "Transfer";*)
+(*           _recipient : ft_contract_address; *)
+(*           _amount : Uint128 0; *)
+(*           to:  reciepient_address; *)
+(*           amount: request_balance}*)
+(*  in *)
+(*  one_msg msg *)
+(*  *)
+let mk_transfer_token_msg : ByStr20 -> Uint128 -> Message =
+  fun (reciepient_address: ByStr20) =>
+  fun (request_balance: Uint128) =>
+  let msg =  {_tag : "Transfer";
+           _recipient : ft_contract_address; 
+           _amount : Uint128 0; 
+           to:  reciepient_address; 
+           amount: request_balance}
+  in msg
+
+
+
+(*donate check*)
+let check_update = 
+  fun (bs : Map ByStr20 Uint128) =>
+  fun (sender : ByStr20) =>
+  fun (amount : Uint128) =>
+    let c = builtin contains bs sender in
+    match c with 
+    | False => 
+      let bs1 = builtin put bs sender amount in
+      Some {Map ByStr20 Uint128} bs1 
+    | True  => None {Map ByStr20 Uint128}
+    end
+
+
+let f  =
+  fun (h: Pair ByStr20 Uint128) =>
+    match h with
+    | Pair a b =>
+      mk_transfer_token_msg a b
+    end
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestSendContract
+(owner: ByStr20)
+
+field backers : Map ByStr20 Uint128 = Emp ByStr20 Uint128
+field contract_address : String = ""
+
+
+transition Donate()
+    bs  <- backers;
+    res = check_update bs _sender _amount;
+    match res with
+    | None => 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : already_backed_code};
+      msgs = one_msg msg;
+      send msgs
+    | Some bs1 =>
+      backers := bs1; 
+      accept_msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : accepted_code};
+      msgs = one_msg accept_msg;
+      send msgs     
+    end
+end 
+
+(*forall ls p : Invoke procedure p for each element in the list ls. p should be defined to take exactly one
+argument whose type is equal to an element of the list ls*)
+transition InitiateFTTransfer ()
+    bs  <- backers;
+    backer_list = builtin to_list bs;
+    convert = @list_map (Pair ByStr20 Uint128) (Message);
+    msgs = convert f backer_list;
+    send msgs
+end  
+
+transition RecipientAcceptTransfer(
+    sender : ByStr20,
+    recipient : ByStr20,
+    amount : Uint128
+  )
+end
+
+transition TransferSuccessCallBack(
+    sender : ByStr20,
+    recipient : ByStr20,
+    amount : Uint128
+  )
+  end
+
+
+
+
+

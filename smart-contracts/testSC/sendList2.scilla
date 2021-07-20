@@ -1,0 +1,191 @@
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+import ListUtils PairUtils
+library TestSendContract
+
+let accepted_code  = Uint32 1
+let already_backed_code = Uint32 2
+
+
+let empty_msg_list = Nil {Message} 
+
+let one_msg =
+  fun (msg : Message) =>
+  let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+
+let dynamic_msg_list: List Message -> List Message -> List Message =
+  fun (lmsg : List Message) =>
+    fun (msg : List Message) =>
+      let la = @list_append Message in
+      la lmsg msg
+
+(* msg  = {_tag : "Transfer"; _recipient : contract_address; _amount : Uint128 0; to:  reciepient_address; amount: request_balance};       *)
+let mk_transfer_token_msg : ByStr20 -> Uint128 -> ByStr20 -> List Message =
+  fun (reciepient_address: ByStr20) =>
+  fun (request_balance: Uint128) =>
+  fun (ft_contract_address: ByStr20) =>
+  let msg =  {_tag : "Transfer";
+           _recipient : ft_contract_address; 
+           _amount : Uint128 0; 
+           to:  reciepient_address; 
+           amount: request_balance}
+  in 
+  one_msg msg 
+
+
+(*donate check*)
+let check_update = 
+  fun (bs : Map ByStr20 Uint128) =>
+  fun (sender : ByStr20) =>
+  fun (amount : Uint128) =>
+    let c = builtin contains bs sender in
+    match c with 
+    | False => 
+      let bs1 = builtin put bs sender amount in
+      Some {Map ByStr20 Uint128} bs1 
+    | True  => None {Map ByStr20 Uint128}
+    end
+
+(* retrieve pair values *)
+let left_pair_value =
+  tfun 'A =>
+  tfun 'B =>
+  fun (p: Pair ('A)('B)) =>
+    match p with 
+    |  Pair a b => a
+    end
+
+let right_pair_value =
+    tfun 'A =>
+    tfun 'B =>
+    fun (p: Pair ('A)('B)) =>
+      match p with 
+      |  Pair a b => b
+      end
+      
+(**)
+(*let process_pair : Pair ByStr20 Uint128 -> List Message =*)
+(*  fun (pp:  Pair ByStr20 Uint128) =>*)
+(*    let fst_left = @left_pair_value ByStr20 Uint128 in*)
+(*    let p_left = fst_left pp in*)
+(*    let fst_right = @right_pair_value ByStr20 Uint128 in*)
+(*    let p_right = fst_right pp in*)
+(*    mk_transfer_token_msg p_left p_right p_left*)
+
+let process_pair : Pair ByStr20 Uint128 -> List Message =
+  fun (pp:  Pair ByStr20 Uint128) =>
+    let fst_left = @left_pair_value ByStr20 Uint128 in
+    let p_left = fst_left pp in
+    let fst_right = @right_pair_value ByStr20 Uint128 in
+    let p_right = fst_right pp in
+    mk_transfer_token_msg p_left p_right p_left
+
+(*List Pair ByStr20 Uint128*)
+let f =
+  fun ((h: Pair ByStr20 Uint128) : Message) =>
+    match h with
+    | Pair a b =>
+    {
+      _tag: "Transfer";
+      _recepient: a;
+      _amount: Uint128 0;
+      to: a;
+      from: b;
+    }
+
+(* let create_transferft_msg : forall 'A. forall 'B. List (Pair 'A 'B) -> List Message =
+  tfun 'A =>
+  tfun 'B =>
+  let create_list = empty_msg_list in
+  fun (h :  Pair 'A 'B) =>
+    match h with
+    | Pair a b =>
+      let p_msg = mk_transfer_token_msg a b a in
+      dynamic_msg_list create_list p_msg
+    end *)
+
+    (* let create_transferft_msg : forall 'A. forall 'B. List (Pair 'A 'B) -> List Message =
+  tfun 'A =>
+  tfun 'B =>
+  let create_list = empty_msg_list in
+  fun (h :  List (Pair 'A 'B)) =>
+    match h with
+    | Pair a b =>
+    let p_msg = process_pair iter in
+    dynamic_msg_list create_list p_msg *)
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestSendContract
+(owner: ByStr20)
+
+field backers : Map ByStr20 Uint128 = Emp ByStr20 Uint128
+field contract_address : String = ""
+
+
+transition Donate()
+    bs  <- backers;
+    res = check_update bs _sender _amount;
+    match res with
+    | None => 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : already_backed_code};
+      msgs = one_msg msg;
+      send msgs
+    | Some bs1 =>
+      backers := bs1; 
+      accept_msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : accepted_code};
+      msgs = one_msg accept_msg;
+      send msgs     
+    end
+end 
+
+ 
+(* procedure RequestTransferToken(reciepient_address: ByStr20, request_balance: Uint128)
+  msg  = {_tag : "Transfer"; _recipient : contract_address; _amount : Uint128 0; to:  reciepient_address; amount: request_balance};
+  msgs = one_msg msg;
+  send msgs
+end *)
+
+(* procedure ProcessPair(p:Pair ByStr20 Uint128)
+  pp <- p;
+  fst_left = @left_pair_value ByStr20 Uint128;
+  p_left = fst_left pp;
+  fst_right = @right_pair_value ByStr20 Uint128;
+  p_right = fst_right pp;
+  mk_transfer_token_msg p_left p_right 
+end *)
+
+(*forall ls p : Invoke procedure p for each element in the list ls. p should be defined to take exactly one
+argument whose type is equal to an element of the list ls*)
+transition InitiateFTTransfer (to_address: ByStr20, msg1: String, msg2: String)
+    bs  <- backers;
+    backer_list = builtin to_list bs;
+    (*List Pair ByStr20 Uint128*)
+    (* iterate_bl = @create_transferft_msg Pair ByStr20 Uint128;
+    msgs = iterate_bl backer_list; *)
+    convert = @list_map (Pair ByStr20 Uint128) Message;
+    msgs = convert f backer_list;
+    send msgs
+end  
+
+
+
+
+

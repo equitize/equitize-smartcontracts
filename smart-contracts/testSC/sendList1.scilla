@@ -1,0 +1,146 @@
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+library TestSendContract
+
+let accepted_code  = Uint32 1
+let already_backed_code = Uint32 2
+
+let one_msg =
+  fun (msg : Message) =>
+  let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+
+(* 
+
+let construct_transfer_msg: ByStr20 -> Uint128 -> Message =
+  fun (a: ByStr20) =>
+  fun (b: Uint128) =>
+    msg  = {_tag : "Transfer"; _recipient : _sender; _amount : Uint128 0; to: ByStr20 a; amount: Uint128 b};
+    let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+  msg = {_tag : "setHello"; _recipient : sc_address; _amount : _amount};
+  msgs = one_msg msg;
+  send msgs
+*)
+
+(* Make map of messages to send out *)
+(* let send_msgs : Map ByStr20 Uint128 -> List Message =
+  fun (backers: Map ByStr20 Uint128) =>
+    let prepare_msg = Emp List Message in
+    let iter =
+      fun( ) *)
+
+let check_update = 
+  fun (bs : Map ByStr20 Uint128) =>
+  fun (sender : ByStr20) =>
+  fun (amount : Uint128) =>
+    let c = builtin contains bs sender in
+    match c with 
+    | False => 
+      let bs1 = builtin put bs sender amount in
+      Some {Map ByStr20 Uint128} bs1 
+    | True  => None {Map ByStr20 Uint128}
+    end
+
+(* retrieve pair values *)
+let left_pair_value =
+  tfun 'A =>
+  tfun 'B =>
+  fun (p: Pair ('A)('B)) =>
+    match p with 
+    |  Pair a b => a
+    end
+
+let right_pair_value =
+    tfun 'A =>
+    tfun 'B =>
+    fun (p: Pair ('A)('B)) =>
+      match p with 
+      |  Pair a b => b
+      end
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestSendContract
+(owner: ByStr20)
+
+field backers : Map ByStr20 Uint128 = Emp ByStr20 Uint128
+field contract_address : String = ""
+
+(*forall ls p : Invoke procedure p for each element in the list ls. p should be defined to take exactly one
+argument whose type is equal to an element of the list ls*)
+transition InitiateFTTransfer (to_address: ByStr20, msg1: String, msg2: String)
+    bs  <- backers;
+    backer_list = builtin to_list bs;
+    forall backers_list ProcessPair;
+end   
+
+procedure ProcessPair(p:Pair ByStr20 Uint128)
+  pp <- p;
+  fst_left = @left_pair_value ByStr20 Uint128;
+  p_left = fst_left pp;
+  fst_right = @right_pair_value ByStr20 Uint128;
+  p_right = fst_right pp;
+  RequestTransferToken p_left,p_right 
+end
+
+
+procedure RequestTransferToken(reciepient_address: ByStr20, request_balance: Uint128)
+  msg  = {_tag : "Transfer"; _recipient : contract_address; _amount : Uint128 0; to: ByStr20 a; amount: Uint128 b};
+  msgs = one_msg msg;
+  send msgs
+end
+
+transition Donate()
+    bs  <- backers;
+    res = check_update bs _sender _amount;
+    match res with
+    | None => 
+      msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : already_backed_code};
+      msgs = one_msg msg;
+      send msgs
+    | Some bs1 =>
+      backers := bs1; 
+      accept_msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : accepted_code};
+      msgs = one_msg accept_msg;
+      send msgs     
+    end
+end 
+
+
+(* to_address is bech32 smart address converted into base16 address via ide smart tool*)
+(* not written properly at the momennt,*)
+transition getNumberBackers (to_address: ByStr20, msg1: String, msg2: String)
+    bs  <- backers;
+    backer_list = builtin to_list bs;    
+    count_no_backer =  @list_length {Pair ByStr20 Uint128};
+    no_backer = count_no_backer backer_list;
+    no_backer_str = builtin to_string Uint32 no_backer;
+    e = {_eventname: "getHello"; msg: no_backer_str};
+    event e
+end
+
+
+transition getNumberBackers (to_address: ByStr20, msg1: String, msg2: String)
+    msg_1 = {_tag : "setHello"; _recipient : to_address; _amount : _amount; msg: msg1};
+    msg_2 = {_tag : "setHello2"; _recipient : to_address; _amount : _amount; msg: msg2};
+    msgs = two_msgs msg_1 msg_2;
+    send msgs
+end

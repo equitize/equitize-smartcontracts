@@ -1,0 +1,64 @@
+(* HelloWorld contract *)
+
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+import ListUtils
+library TestSendContract
+
+let get_hello_code  = Uint32 1
+let hello_SC = "0xFBDC8D084C6eB56F4A7f20feFe2D55AD70Fbc209"
+
+
+let one_msg =
+  fun (msg : Message) =>
+  let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+
+(* let three_msgs: List Message -> Message -> List Message =
+  fun (lmsg : List Message) =>
+    fun (msg : Message) =>
+      let m1 = one_msg msg in 
+      Cons lmsg m1 *)
+
+let dynamic_msg: List Message -> Message -> List Message =
+  fun (lmsg : List Message) =>
+    fun (msg : Message) =>
+      let la = @list_append Message in
+      let msg1 = one_msg msg in
+      la lmsg msg1
+
+let dynamic_msg_list: List Message -> List Message -> List Message =
+      fun (lmsg : List Message) =>
+        fun (msg : List Message) =>
+          let la = @list_append Message in
+          la lmsg msg
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestSendContract
+(owner: ByStr20)
+
+(* to_address is bech32 smart address converted into base16 address via ide smart tool*)
+transition getHelloSC (to_address: ByStr20, msg1: String, msg2: String, msg3: String)
+    msg_1 = {_tag : "setHello"; _recipient : to_address; _amount : _amount; msg: msg1};
+    msg_2 = {_tag : "setHello2"; _recipient : to_address; _amount : _amount; msg: msg2};
+    msg_3 = {_tag : "setHello2"; _recipient : to_address; _amount : _amount; msg: msg3};
+    msgs = two_msgs msg_1 msg_2;
+    msgs_c = dynamic_msg msgs msg_3;
+    send msgs_c
+end
