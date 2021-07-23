@@ -6,9 +6,6 @@ scilla_version 0
 import IntUtils
 library FungibleToken
 
-(* burn address*)
-let burn_address = 0xc5D1335fA8ad5e5963547aA4C4137CbC8F7C6252
-
 let one_msg = 
   fun (msg : Message) => 
   let nil_msg = Nil {Message} in
@@ -19,13 +16,6 @@ fun (msg1 : Message) =>
 fun (msg2 : Message) =>
   let msgs_tmp = one_msg msg2 in
   Cons {Message} msg1 msgs_tmp
-
-let three_msgs =
-fun (msg1 : Message) =>
-fun (msg2 : Message) =>
-fun (msg3 : Message) =>
-  let msgs_tmp = two_msgs msg1 msg2 in
-  Cons {Message} msg3 msgs_tmp
 
 (* Error events *)
 type Error =
@@ -60,7 +50,7 @@ let get_val =
   end
 
 (* code for Fungible Token*)
-let set_milestone_deadline_reached_code = Int32 1
+let set_campaign_succeed_code = Int32 1
 let transfer_balance_cf_succeed_code = Int32 2
 
 (***************************************************)
@@ -77,14 +67,13 @@ contract FungibleToken
 )
 
 (* Mutable fields *)
-field current_contract_owner: ByStr20 = contract_owner (* will be changed to crowdfunding smart contract *)
+field crowdfunding_campaign_success :  Bool = False (* FT contract will only be considered legitimate after crowdfunding campaign success*)
+
 field total_supply : Uint128 = init_supply
 
 field balances: Map ByStr20 Uint128 
   = let emp_map = Emp ByStr20 Uint128 in
     builtin put emp_map contract_owner init_supply
-
-field milestone_deadline_reached :  Bool = False 
 
 (**************************************)
 (*             Procedures             *)
@@ -106,8 +95,7 @@ procedure IsNotSender(address: ByStr20)
 end
 
 procedure IsContractOwner()
-  current_owner <- current_contract_owner;
-  is_contract_owner = builtin eq _sender current_owner;
+  is_contract_owner = builtin eq _sender contract_owner;
   match is_contract_owner with
   | True =>
   | False =>
@@ -148,7 +136,6 @@ end
 (* @param to:  Address of the recipient whose balance is increased.                 *)
 (* @param amount:     Amount of tokens to be sent.                                  *)
 transition Transfer(to: ByStr20, amount: Uint128)
-  IsContractOwner;
   AuthorizedMoveIfSufficientBalance _sender to amount;
   e = {_eventname : "TransferSuccess"; sender : _sender; recipient : to; amount : amount};
   event e;
@@ -165,8 +152,6 @@ end
 transition TransferBalanceToCF(cf_address: ByStr20, amount :Uint128)
     IsContractOwner;
     AuthorizedMoveIfSufficientBalance _sender cf_address amount;
-    (* make cf_address the owner*)
-    current_contract_owner := cf_address;
     e = {_eventname : "TransferBalanceToCFSuccess"; code : transfer_balance_cf_succeed_code};
     event e;
     (* Prevent sending to a contract address that does not support transfers of token *)
@@ -178,47 +163,12 @@ transition TransferBalanceToCF(cf_address: ByStr20, amount :Uint128)
   send msgs
 end
 
-(* constraints to be met before can burn token*)
-transition MilestoneDeadlineReached()
-  (* validate that contract owner is cf smart contract*)
-  IsContractOwner;
+
+
+(* constraints how to limit this???*)
+transition SetCampaignSucceed()
   tt = True;
-  milestone_deadline_reached := tt;
-  e = {_eventname : "MilestoneDeadlineReached"; code : set_milestone_deadline_reached_code};
+  crowdfunding_campaign_success := tt;
+  e = {_eventname : "SetCampaignSucceed"; code : set_campaign_succeed_code};
   event e
 end
-
-(* retail investors can call the burn function by themselves, allows burn token even if all milestones are reached*)
-transition BurnToken()
-  (* check if milestone deadline reached *)
-  m <- milestone_deadline_reached;
-  match m with
-  | False =>
-      e = {_eventname : "BurnTokenUnsucessful"; sender : _sender; recipient : burn_address; amount : Uint128 0};
-      event e
-  | True =>
-      (* burn all tokens held by sender*)
-      balance_sender_o <- balances[_sender];
-      sender_balance = get_val balance_sender_o;
-      (* check ownership, then burn token*)
-      AuthorizedMoveIfSufficientBalance _sender burn_address sender_balance;
-      e = {_eventname : "BurnTokenSuccessful"; sender : _sender; recipient : burn_address; amount : sender_balance};
-      event e;
-      (* Prevent sending to a contract address that does not support transfers of token *)
-      msg_to_recipient = {_tag : "RecipientAcceptTransfer"; _recipient : burn_address; _amount : zero; 
-                          sender : _sender; recipient : burn_address; amount : sender_balance};
-      msg_to_sender = {_tag : "TransferSuccessCallBack"; _recipient : _sender; _amount : zero; 
-                      sender : _sender; recipient : burn_address; amount : sender_balance};
-      (* Send message to call payout in the crowdfunding smart contract*)
-      integrate_sc_address <- current_contract_owner;
-      supply <- total_supply;
-      (* Send message for claimback*)
-      msg_to_call_payout = {_tag : "CalculateClaimback"; _recipient : integrate_sc_address; _amount : zero; 
-      address: _sender; sender_balance:sender_balance;init_supply: supply};
-      msgs = three_msgs msg_to_recipient msg_to_sender msg_to_call_payout;
-      send msgs
-  end
-end
-
-
-

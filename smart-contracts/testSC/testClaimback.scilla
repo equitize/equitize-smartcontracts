@@ -1,0 +1,77 @@
+(* HelloWorld contract *)
+
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+library TestClaimback
+
+let milestone_refund_retail_investor_code = Uint32 1
+let accepted_code  = Uint32 2
+let milestone_claimback_successful_code = Uint32 100
+let milestone_claimback_successful_code_b = Uint32 4
+let tryhere = Uint128 3
+let trya = Uint128 10
+let tryb =Uint128 30
+let tryc =Uint128 20
+
+let one_msg = 
+  fun (msg : Message) => 
+    let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract TestClaimback
+(owner: ByStr20)
+
+transition Donate ()
+    accept; 
+    msg  = {_tag : ""; _recipient : _sender; _amount : Uint128 0; 
+              code : accepted_code};
+    msgs = one_msg msg;
+    e = { _eventname : "DonationAccepted"; donor : _sender; amount : _amount };
+    event e;
+    send msgs
+end
+
+transition CalculateClaimback(address: ByStr20, sender_balance: Uint128, init_supply: Uint128, cal_balance: Uint128 )
+    (* the formula to refund retail investors is:*)
+    (* sender_balance/init_supply*failed_milestone_balance *)
+    (* cal_balance <- failed_milestone_balance; *)
+    intermed = builtin mul sender_balance cal_balance;
+    return_amount_to_address = builtin div intermed init_supply;
+    (*as rounding of of values can result in return a balance that is more than what is inside account, we need to perforrm check and return whats left in account*)
+    current_bal <- _balance;
+    lt_available_bal = builtin lt current_bal return_amount_to_address;
+    match lt_available_bal with
+    | True =>
+      (* return available balance*)
+      msg = {_tag : ""; _recipient : address; _amount : current_bal; code : milestone_refund_retail_investor_code; intermed : intermed ; return_amount_to_address : return_amount_to_address};
+      msgs = one_msg msg;
+      e = {_eventname : "ClaimbackSuccess"; _recipient : address; _amount :current_bal ; code : milestone_claimback_successful_code };
+      event e;
+      send msgs
+    | False =>
+      msg = {_tag : ""; _recipient : address; _amount : return_amount_to_address; code : milestone_refund_retail_investor_code;  intermed : intermed ; return_amount_to_address : return_amount_to_address};
+      msgs = one_msg msg;
+      e = {_eventname : "ClaimbackSuccess"; _recipient : address; _amount :return_amount_to_address; code :  milestone_claimback_successful_code_b};
+      event e;
+      send msgs
+    end
+end
+
+transition checkDiv(a:Uint128, b:Uint128, c:Uint128)
+  equity_ratio = builtin mul a b;
+  return_amount_to_address = builtin div equity_ratio c;
+  msg = {_tag : ""; _recipient : _sender; _amount : Uint128 0; equity_ratio:equity_ratio;return_amount_to_address : return_amount_to_address};
+  msgs = one_msg msg;
+  send msgs
+end
