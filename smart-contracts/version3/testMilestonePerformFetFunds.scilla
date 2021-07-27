@@ -1,0 +1,81 @@
+scilla_version 0
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+library TestMilestone
+
+let xsgd_contract_address = 0x789c86feb69d587189b64099bc683e970640d2ae
+let milestone_claimed_code = Int32 12
+
+let one_msg = 
+  fun (msg : Message) => 
+    let nil_msg = Nil {Message} in
+    Cons {Message} msg nil_msg
+    
+let two_msgs : Message -> Message -> List Message =
+  fun (msg1 : Message) =>
+    fun (msg2 : Message) =>
+      let first = one_msg msg1 in
+      Cons { Message } msg2 first
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+contract TestMilestone
+(*  Parameters *)
+(owner     : ByStr20
+ )
+(* Milestone transitions*)
+
+
+transition MilestonePerformGetFunds (amount : Uint128, to: ByStr20)
+  first_msg  = {_tag : "IncreaseAllowance"; _recipient : xsgd_contract_address; _amount : Uint128 0; 
+          spender:to; amount: amount};
+  msgs = one_msg first_msg;
+  e = { _eventname : "ClaimInProgress"; caller : to; amount : amount; code : milestone_claimed_code};
+  event e;
+  send msgs
+end
+
+(* this can only be called by _sender address because it checks the allowances with b[from][_sender]*)
+transition em(amount : Uint128, to: ByStr20, cf_sc_address: ByStr20 )
+  msg  = {_tag : "TransferFrom"; _recipient : xsgd_contract_address; _amount : Uint128 0; 
+          from:_sender; to: to; amount: amount};
+  msgs = one_msg msg;
+  e = { _eventname : "ClaimInProgress"; caller : to; amount : amount; code : milestone_claimed_code};
+  event e;
+  send msgs
+end
+       
+
+(* XSGD Transition *)
+transition RecipientAcceptTransfer(
+        sender : ByStr20,
+        recipient : ByStr20,
+        amount : Uint128
+      )
+      end
+      
+      
+transition TransferSuccessCallBack(
+  sender : ByStr20,
+  recipient : ByStr20,
+  amount : Uint128
+)  
+end
+
+transition RecipientAcceptTransferFrom(
+  initiator : ByStr20,
+  sender : ByStr20,
+  recipient : ByStr20,
+  amount : Uint128
+)
+end
+
+(* Callback Transition for XSGD to make sure that XSGD received by SC*)
+transition TransferFromSuccessCallBack(
+initiator : ByStr20,
+sender : ByStr20,
+recipient : ByStr20,
+amount : Uint128
+)
+end
