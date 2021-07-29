@@ -46,8 +46,8 @@ async function testBlockchain() {
     // Deploy a contract
     console.log(`Deploying a new contract....`);
     var {XSGD_address} = require('./config/XSGD.json');
-var {equityToken} = require('./config/equitytoken.json');
-var cf = require("./smart_contracts/crowdfunding.js")(XSGD_address,equityToken);
+    var {equityToken} = require('./config/equitytoken.json');
+    var cf = require("./smart_contracts/crowdfunding.js")(XSGD_address,equityToken);
     const init = [
       // this parameter is mandatory for all init arrays
       {
@@ -89,11 +89,11 @@ var cf = require("./smart_contracts/crowdfunding.js")(XSGD_address,equityToken);
     // Deploy the contract.
     // Also notice here we have a default function parameter named toDs as mentioned above.
     // A contract can be deployed at either the shard or at the DS. Always set this value to false.
-    const [deployTx, deployedFungibleToken] = await contract.deployWithoutConfirm(
+    const [deployTx, deployedFungibleToken] = await contract.deploy(
       {
         version: VERSION,
         gasPrice: myGasPrice,
-        gasLimit: Long.fromNumber(100000),
+        gasLimit: Long.fromNumber(80000),
       },
       33,
       1000,
@@ -101,6 +101,8 @@ var cf = require("./smart_contracts/crowdfunding.js")(XSGD_address,equityToken);
     );
 
     // process confirm
+    console.log(deployTx)
+    console.log(deployedFungibleToken)
     console.log(`The transaction id is:`, deployTx.id);
     console.log(`Waiting transaction be confirmed`);
     const confirmedTxn = await deployTx.confirm(deployTx.id);
